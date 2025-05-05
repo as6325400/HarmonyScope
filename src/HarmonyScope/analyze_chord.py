@@ -37,12 +37,20 @@ def analyze_chord(wav_path):
 
 def main():
     import os
+    import time
+    
+    start_time = time.time()
+    
     data_dir = os.path.join(os.path.dirname(__file__), "data")
     for filename in os.listdir(data_dir):
         if filename.endswith(".wav"):
             path = os.path.join(data_dir, filename)
             predicted = analyze_chord(path)
             print(f"{filename}: predicted → {predicted}")
+            
+    end_time = time.time()
+    elapsed = end_time - start_time
+    print(f"Total time: {elapsed:.2f} seconds")
 
 if __name__ == "__main__":
     main()

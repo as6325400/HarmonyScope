@@ -1,3 +1,4 @@
+import argparse
 import librosa
 import librosa.display
 import matplotlib.pyplot as plt
@@ -34,16 +35,23 @@ def plot_chroma(y, sr, output_path):
     plt.savefig(output_path)
     plt.close()
 
-def process_file(wav_path, output_dir):
+def process_file(wav_path, output_dir, base_name):
     y, sr = librosa.load(wav_path)
-    base_name = os.path.splitext(os.path.basename(wav_path))[0]
     plot_waveform(y, sr, os.path.join(output_dir, f"{base_name}_waveform.png"))
     plot_spectrogram(y, sr, os.path.join(output_dir, f"{base_name}_spectrogram.png"))
     plot_chroma(y, sr, os.path.join(output_dir, f"{base_name}_chroma.png"))
-    print(f"Plots saved for {base_name}")
+    print(f"Plots saved in {output_dir} for {base_name}")
 
 if __name__ == "__main__":
-    input_wav = "src/HarmonyScope/data/C.wav"
-    output_dir = "plots"
+    parser = argparse.ArgumentParser(description="Generate waveform, spectrogram, and chroma plots for a .wav file")
+    parser.add_argument("--input", type=str, required=True, help="Path to the input .wav file")
+    parser.add_argument("--name", type=str, default=None, help="Base name for the output files (default: input filename)")
+    parser.add_argument("--output", type=str, default="plots", help="Output directory (default: plots)")
+    args = parser.parse_args()
+
+    input_wav = args.input
+    output_dir = args.output
+    base_name = args.name if args.name else os.path.splitext(os.path.basename(input_wav))[0]
+
     os.makedirs(output_dir, exist_ok=True)
-    process_file(input_wav, output_dir)
+    process_file(input_wav, output_dir, base_name)

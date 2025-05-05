@@ -42,7 +42,7 @@ def process_file(wav_path, output_dir, base_name):
     plot_chroma(y, sr, os.path.join(output_dir, f"{base_name}_chroma.png"))
     print(f"Plots saved in {output_dir} for {base_name}")
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description="Generate waveform, spectrogram, and chroma plots for a .wav file")
     parser.add_argument("--input", type=str, required=True, help="Path to the input .wav file")
     parser.add_argument("--name", type=str, default=None, help="Base name for the output files (default: input filename)")
@@ -55,3 +55,6 @@ if __name__ == "__main__":
 
     os.makedirs(output_dir, exist_ok=True)
     process_file(input_wav, output_dir, base_name)
+    
+if __name__ == "__main__":
+    main()

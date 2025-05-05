@@ -35,7 +35,7 @@ def analyze_chord(wav_path):
 
     return best_match
 
-if __name__ == "__main__":
+def main():
     import os
     data_dir = os.path.join(os.path.dirname(__file__), "data")
     for filename in os.listdir(data_dir):
@@ -43,3 +43,6 @@ if __name__ == "__main__":
             path = os.path.join(data_dir, filename)
             predicted = analyze_chord(path)
             print(f"{filename}: predicted → {predicted}")
+
+if __name__ == "__main__":
+    main()

@@ -37,3 +37,4 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 plot = "HarmonyScope.plot_features:main"
+analyze = "HarmonyScope.analyze_chord:main"

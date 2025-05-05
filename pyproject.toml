@@ -1,0 +1,36 @@
+[tool.poetry]
+name = "HarmonyScope"
+version = "0.1.0"
+description = "A real-time and offline chord recognition tool for audio analysis."
+authors = ["as6325400 <as63254400@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/as6325400/HarmonyScope"
+repository = "https://github.com/as6325400/HarmonyScope"
+documentation = "https://github.com/as6325400/HarmonyScope"
+keywords = ["harmony", "chord recognition", "audio analysis", "real-time", "music"]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent"
+]
+packages = [{ include = "harmonyscope", from = "src" }]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+librosa = "^0.11.0"
+sounddevice = "^0.5.1"
+matplotlib = "^3.10.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.5"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

@@ -30,8 +30,8 @@ PITCH_CLASS_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F',
 
 def active_pitches(
         wav_path: str,
-        frame_energy_thresh_db: float = -40,   # 判定 frame 是否「有聲」
-        delta_db: float = 2,                  # 在峰值 Δ 內的 pitch 視為 active
+        frame_energy_thresh_db: float = -40,   # Determine whether a frame is “voiced”
+        delta_db: float = 2,                  # Treat a pitch as active if its energy lies within Δ dB of the peak
         debug: bool = True):
 
     y, sr = librosa.load(wav_path, sr=None)
@@ -46,7 +46,7 @@ def active_pitches(
     chroma = librosa.feature.chroma_cqt(
                 y=y, sr=sr, n_chroma=12)[:, voiced_frames]
 
-    # 5. 每列取最大能量, 在峰值 Δ 內的 pitch 視為 active
+    # For each pitch‑class row, take its maximum energy; any row whose value is within Δ dB of the peak is marked as active.
     pc_energy = librosa.amplitude_to_db(chroma, ref=np.max).max(axis=1)
     peak_db   = pc_energy.max()
     active_idx = np.where(pc_energy >= peak_db - delta_db)[0]

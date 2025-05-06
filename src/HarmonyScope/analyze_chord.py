@@ -32,7 +32,7 @@ def active_pitches(
         wav_path: str,
         frame_energy_thresh_db: float = -40,   # Determine whether a frame is “voiced”
         delta_db: float = 2,                  # Treat a pitch as active if its energy lies within Δ dB of the peak
-        debug: bool = True):
+        debug: bool = False):
 
     y, sr = librosa.load(wav_path, sr=None)
 
@@ -84,7 +84,6 @@ def identify_chord(pitches: set[int]) -> str | None:
 
 def analyze_chord(wav_path):
     pcs = active_pitches(wav_path)
-    print(pcs)
     return identify_chord(pcs)
 
 def main():

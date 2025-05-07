@@ -5,7 +5,7 @@ import time
 import argparse
 from HarmonyScope import set_verbosity
 
-def main():
+def file():
     
     ap = argparse.ArgumentParser()
     ap.add_argument("-v", "--verbose", action="count", default=0,
@@ -27,4 +27,4 @@ def main():
     
 
 if __name__ == "__main__":
-    main()
+    file()

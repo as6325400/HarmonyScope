@@ -633,17 +633,6 @@ files = [
 ]
 
 [[package]]
-name = "logging"
-version = "0.4.9.6"
-description = "A logging module for Python"
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = [
-    {file = "logging-0.4.9.6.tar.gz", hash = "sha256:26f6b50773f085042d301085bd1bf5d9f3735704db9f37c1ce6d8b85c38f2417"},
-]
-
-[[package]]
 name = "markdown-it-py"
 version = "3.0.0"
 description = "Python port of markdown-it. Markdown parsing, done right!"
@@ -1493,4 +1482,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.12"
-content-hash = "9d685a082d2d87373d07cdf08b34cb02bfbd55993799effc20a21e8bab0bb86b"
+content-hash = "33e599e167edf1168ddba078a3fabc727254cc40511120aa3c459fbc8daf9f88"

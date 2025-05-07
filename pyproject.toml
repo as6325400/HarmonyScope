@@ -28,6 +28,8 @@ librosa = "^0.11.0"
 sounddevice = "^0.5.1"
 matplotlib = "^3.10.1"
 logging = "^0.4.9.6"
+questionary = "^2.1.0"
+rich = "^14.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"
@@ -39,3 +41,4 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.scripts]
 plot = "HarmonyScope.plot_features:main"
 file_analyze = "HarmonyScope.cli.file_analyze:main"
+mic_analyze = "HarmonyScope.cli.mic_analyze:main"

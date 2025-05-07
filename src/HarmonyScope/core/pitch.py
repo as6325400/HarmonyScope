@@ -26,6 +26,18 @@ def active_pitches_array(y, sr, *,
     act_idx = np.where(pc_energy >= peak - delta_db)[0]
     active = set(act_idx)
     
+    table = []
+    for i, name in enumerate(PITCH_CLASS_NAMES):
+        diff = peak - pc_energy[i]
+        info = {
+            'index': i,
+            'name': name,
+            'energy_db': pc_energy[i],
+            'delta_db': diff,
+            'active': (i in active)
+        }
+        table.append(info)
+        
     if logger.isEnabledFor(logging.DEBUG):
         logger.debug("Active‑pitch debug dump:")
         for i, name in enumerate(PITCH_CLASS_NAMES):
@@ -36,4 +48,4 @@ def active_pitches_array(y, sr, *,
                 f"(Δ={diff:4.1f}) {flag}"
             )
             
-    return active
+    return active, table

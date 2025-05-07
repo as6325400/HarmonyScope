@@ -7,6 +7,5 @@ logging.basicConfig(
 
 def set_verbosity(verbose: int):
     """verbose=0→INFO、1→DEBUG"""
-    print(verbose)
     if verbose >= 1:
         logging.getLogger("HarmonyScope").setLevel(logging.DEBUG)

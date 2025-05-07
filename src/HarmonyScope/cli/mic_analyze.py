@@ -60,7 +60,6 @@ def main():
     args = ap.parse_args()
     
     dev_id = args.device if args.device is not None else choose_device_interactive()
-    print("dev_id ", dev_id)
     reader = MicReader(device=dev_id)
     ana    = ChordAnalyzer(reader=reader)
     

@@ -49,23 +49,21 @@ class ChordAnalyzer:
             
             yield start / sr, (start + win) / sr, chord
             
-    def stream_mic_live(self, interval_sec: float = 0.3):
+    def stream_mic_live(self, interval_sec: float = 0.5):
         """
         Keep fetching buffer from the reader and analyze it every interval.
         """
         import time
         
         reader = self.reader
-        win_sec = 0.25
+        win_sec = interval_sec
         try:
+            time.sleep(0.1)
             while True:
                 y = reader.get_buffer()
-                if len(y) == 0:
-                    time.sleep(interval_sec)
-                    continue
 
                 if len(y) < win_sec * reader.sr:
-                    print(len(y), win_sec * reader.sr)
+                    # print(len(y), win_sec * reader.sr)
                     print("(Waiting for more data...)")
                     time.sleep(interval_sec)
                     continue

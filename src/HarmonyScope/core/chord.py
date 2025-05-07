@@ -1,12 +1,15 @@
 from typing import Set, Tuple, Optional
 from .constants import PITCH_CLASS_NAMES, CHORD_RELATIONS
 
+
 def identify_chord(pitches: Set[int]) -> Optional[str]:
     if not pitches:
         return None
-    best: Optional[Tuple[int,str]] = None   # (complexity, name)
+    best: Optional[Tuple[int, str]] = None  # (complexity, name)
     for root_pc in pitches:
-        intervals = {(pc - root_pc) % 12 for pc in pitches}
+        intervals = {
+            (pc - root_pc) % 24 for pc in pitches
+        }  # + {(pc - root_pc) for pc in pitches}
         intervals.add(0)
         for suffix, rel in CHORD_RELATIONS:
             if intervals.issubset(rel):

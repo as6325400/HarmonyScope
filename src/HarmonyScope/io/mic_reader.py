@@ -4,6 +4,7 @@ from typing import Tuple
 from collections import deque
 import threading
 
+
 # --------  List devices -----------------------------------------------------
 def list_input_devices() -> list[tuple[int, str]]:
     """
@@ -15,19 +16,22 @@ def list_input_devices() -> list[tuple[int, str]]:
             devices.append((idx, info["name"]))
     return devices
 
+
 class MicReader:
     """An object reader that conforms to AudioReader and starts streaming automatically."""
-    
-    def __init__(self,
-                 device: int | None = None,   # Device ID; None = default
-                 sr: int = 44100,            # Sampling rate
-                 maxlen_sec: float = 10.0):  # Max buffer size (in seconds)
+
+    def __init__(
+        self,
+        device: int | None = None,  # Device ID; None = default
+        sr: int = 44100,  # Sampling rate
+        maxlen_sec: float = 10.0,
+    ):  # Max buffer size (in seconds)
         self.device = device
         self.sr = sr
         self.maxlen_frames = int(maxlen_sec * sr)  # 計算 buffer 的 frame 數
         self.buffer = deque(maxlen=self.maxlen_frames)  # buffer 用 deque 固定長度
         self.lock = threading.Lock()  # 線程鎖
-        self.stream = None            # 放 InputStream
+        self.stream = None  # 放 InputStream
 
         # 🚀 立刻啟動 stream！
         self._start_stream()
@@ -44,7 +48,7 @@ class MicReader:
             channels=1,
             dtype="float32",
             device=self.device,
-            callback=self._callback
+            callback=self._callback,
         )
         self.stream.start()  # 立刻開啟 stream
 
@@ -87,5 +91,5 @@ class MicReader:
             else:
                 # 回傳最後 win_sec 秒
                 y = np.array(self.buffer)[-num_frames:]
-        
+
         return y, self.sr

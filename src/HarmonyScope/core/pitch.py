@@ -3,6 +3,7 @@ import librosa
 import logging
 import scipy.signal
 from collections import Counter
+from typing import Set, Tuple, List, Dict, Any  # Import Dict, Any
 from .constants import PITCH_CLASS_NAMES
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,7 @@ def active_pitches_array(
     peak_height_percentile=90,  # Peaks must be above this percentile in frame magnitude (linear)
     min_prominence_db=8,  # Peaks must have this minimum prominence in dB (relative to local spectral floor)
     max_level_diff_db=15,  # Peaks must be within this many dB of the loudest peak in the frame
-    peak_distance_bins=3,  # Minimum distance between peaks in CQT bins
+    peak_distance_bins=3,  # Minimum horizontal distance (in CQT bins) between peaks
 ):
     """
     Identify active pitch classes (0-11) using spectral peak picking, prominence,
@@ -40,12 +41,15 @@ def active_pitches_array(
         peak_distance_bins (int): Minimum horizontal distance (in CQT bins) between peaks.
 
     Returns:
-        Tuple[Set[int], List[Dict], int]: A tuple containing:
+        Tuple[Set[int], List[Dict], List[Dict[str, Any]], int]: A tuple containing:
             - A set of active pitch class indices (0-11).
             - A list of 12 dictionaries, one for each pitch class (0-11),
               with aggregated debug information ('pc', 'name', 'detection_count',
               'avg_prominence_db', 'avg_peak_level_db', 'avg_level_diff_db', 'active').
               Includes 'min_required_frames', 'total_voiced_frames'.
+            - A list of dictionaries, where each dictionary represents a single
+              detected spectral peak (note detection) including its MIDI note,
+              pitch class, octave, frequency, and metrics within its frame.
             - The total count of voiced CQT frames processed.
     """
     # Using default hop_length for librosa functions (usually 512) for consistent frame counts
@@ -59,7 +63,7 @@ def active_pitches_array(
     # Handle case with no audio or silence
     if np.all(~voiced_rms_frames):
         logger.debug("No voiced frames detected within energy threshold.")
-        # Return empty set, a list of 12 zero-filled dicts, and 0 voiced frames
+        # Return empty set, a list of 12 zero-filled dicts, an empty peak list, and 0 voiced frames
         table_data = []
         for i, name in enumerate(PITCH_CLASS_NAMES):
             table_data.append(
@@ -75,7 +79,7 @@ def active_pitches_array(
                     "total_voiced_frames": 0,
                 }
             )
-        return set(), table_data, 0
+        return set(), table_data, [], 0  # Return empty list for peak detections
 
     # 2. Compute CQT magnitude (linear and dB)
     fmin = librosa.midi_to_hz(36)  # C1
@@ -109,8 +113,12 @@ def active_pitches_array(
     pc_prominence_sums = Counter()
     pc_peak_level_sums = Counter()
     pc_level_diff_sums = Counter()
-    # Need to track how many times a PC contributed to the sums (it could be detected multiple times in one frame across octaves)
-    pc_contributions_count = Counter()
+    pc_contributions_count = (
+        Counter()
+    )  # Track how many peak detections contributed to sums per PC
+
+    # --- Data structure to collect individual peak detections across all frames ---
+    all_peak_detections: List[Dict[str, Any]] = []
 
     voiced_cqt_frames_count = 0
 
@@ -126,16 +134,14 @@ def active_pitches_array(
                 logger.debug(f"Frame {frame_idx}: Low energy, skipping peak detection.")
                 continue
 
+            peak_threshold_linear = 0
             if np.max(frame_mag_linear) > 1e-12:
-                positive_mags = frame_mag_linear[frame_mag_linear > 0]
+                # Only consider positive magnitudes for percentile calculation
+                positive_mags = frame_mag_linear[frame_mag_linear > 1e-12]
                 if len(positive_mags) > 0:
                     peak_threshold_linear = np.percentile(
                         positive_mags, peak_height_percentile
                     )
-                else:
-                    peak_threshold_linear = 0
-            else:
-                peak_threshold_linear = 0
 
             initial_peaks, _ = scipy.signal.find_peaks(
                 frame_mag_linear,
@@ -159,7 +165,6 @@ def active_pitches_array(
                 prominences_db >= min_prominence_db
             ]
 
-            level_filtered_indices = []
             prominence_filtered_peak_levels_db = frame_mag_db[
                 prominence_filtered_indices
             ]
@@ -193,14 +198,32 @@ def active_pitches_array(
             for i, peak_bin in enumerate(final_filtered_indices):
                 if 0 <= peak_bin < len(cqt_midi):
                     midi_note_float = cqt_midi[peak_bin]
+                    # Filter out potential NaNs or out-of-range MIDI values from conversion
                     if not np.isnan(midi_note_float) and 0 <= midi_note_float <= 127:
                         midi_note = round(midi_note_float)
                         pc = midi_note % 12
+                        # MIDI note to octave: C0 is MIDI 12. Octave = (MIDI - 12) // 12
+                        octave = (
+                            (midi_note - 12) // 12 if midi_note >= 12 else -1
+                        )  # Handle notes below C0 if they somehow appear
 
-                        # Add PC to the set detected in THIS frame (for count)
+                        # Add PC to the set detected in THIS frame (for frame count)
                         frame_detected_pcs.add(pc)
 
-                        # Aggregate metrics per PC (can have multiple contributions per frame)
+                        # Collect individual peak detection details
+                        peak_info = {
+                            "frame_idx": frame_idx,
+                            "midi_note": midi_note,
+                            "pc": pc,
+                            "octave": octave,
+                            "freq": cqt_freqs[peak_bin],  # Use the actual frequency
+                            "prominence_db": final_filtered_prominences_db[i],
+                            "peak_level_db": final_filtered_levels_db[i],
+                            "level_diff_db": final_filtered_level_diffs_db[i],
+                        }
+                        all_peak_detections.append(peak_info)
+
+                        # Aggregate metrics per PC (can have multiple contributions per frame across octaves)
                         pc_prominence_sums[pc] += final_filtered_prominences_db[i]
                         pc_peak_level_sums[pc] += final_filtered_levels_db[i]
                         pc_level_diff_sums[pc] += final_filtered_level_diffs_db[i]
@@ -214,9 +237,11 @@ def active_pitches_array(
     # --- Aggregate detections and determine active Pitch Classes ---
 
     # Handle case where no voiced CQT frames had significant peaks after filtering
-    if voiced_cqt_frames_count == 0:  # pc_detection_counts would be empty too
+    if (
+        voiced_cqt_frames_count == 0 and not all_peak_detections
+    ):  # pc_detection_counts would be empty too
         logger.debug("No MIDI notes detected in any voiced frames after filtering.")
-        # Return empty set, a list of 12 zero-filled dicts, and 0 voiced frames
+        # Return empty set, a list of 12 zero-filled dicts, an empty peak list, and 0 voiced frames
         table_data = []
         for i, name in enumerate(PITCH_CLASS_NAMES):
             table_data.append(
@@ -232,12 +257,14 @@ def active_pitches_array(
                     "total_voiced_frames": 0,
                 }
             )
-        return set(), table_data, 0
+        return set(), table_data, [], 0  # Return empty list for peak detections
 
     # Calculate minimum required *frames* for a PC to be active
     min_required_frames = int(voiced_cqt_frames_count * min_frame_ratio)
+    # Ensure at least 1 frame is required if there are voiced frames and ratio > 0
     if voiced_cqt_frames_count > 0 and min_frame_ratio > 0 and min_required_frames == 0:
         min_required_frames = 1
+    # If no voiced frames, min_required_frames remains 0, correctly yielding no active PCs
 
     active_pitch_classes = set()
     table_data = []  # List of 12 dicts, one per PC
@@ -270,7 +297,10 @@ def active_pitches_array(
         )  # Use +inf as default diff
 
         # A pitch class is active if its frame count meets the threshold
-        is_active = frame_count >= min_required_frames
+        # Only consider a PC active if there was at least one contribution/detection,
+        # and the frame count meets the minimum required frames.
+        is_active = (total_contributions > 0) and (frame_count >= min_required_frames)
+
         if is_active:
             active_pitch_classes.add(pc)
 
@@ -278,7 +308,7 @@ def active_pitches_array(
             "pc": pc,
             "name": name,
             "detection_count": frame_count,  # This is the frame count
-            "total_contributions": total_contributions,  # Added for debug
+            "total_contributions": total_contributions,  # Total peaks detected for this PC across octaves
             "min_required_frames": min_required_frames,
             "total_voiced_frames": voiced_cqt_frames_count,
             "active": is_active,
@@ -291,6 +321,9 @@ def active_pitches_array(
     # Sort table data by pitch class index (C, C#, ...) for consistent order
     table_data.sort(key=lambda x: x["pc"])
 
+    # Sort individual peak detections by MIDI note for consistent display order
+    all_peak_detections.sort(key=lambda x: x["midi_note"])
+
     if logger.isEnabledFor(logging.DEBUG):
         logger.debug(
             f"Active Pitch Classes debug dump (min frames: {min_required_frames}/{voiced_cqt_frames_count}, min prom: {min_prominence_db:.1f}dB, max diff: {max_level_diff_db:.1f}dB):"
@@ -298,6 +331,7 @@ def active_pitches_array(
         if voiced_cqt_frames_count > 0:
             for pitch_info in table_data:
                 flag = "✔" if pitch_info["active"] else " "
+                # Ensure denominator is not zero before calculating ratio
                 ratio = (
                     pitch_info["detection_count"] / pitch_info["total_voiced_frames"]
                     if pitch_info["total_voiced_frames"] > 0
@@ -305,13 +339,31 @@ def active_pitches_array(
                 )
                 logger.debug(
                     f"{pitch_info['name']:>2}: Frames: {pitch_info['detection_count']:3} ({ratio:.1%}), "
-                    f"Contribs: {pitch_info['total_contributions']:3}, "  # Show total contributions
+                    f"Contribs: {pitch_info['total_contributions']:3}, "
                     f"Prom Avg: {pitch_info['avg_prominence_db']:5.1f}dB, "
                     f"Level Avg: {pitch_info['avg_peak_level_db']:5.1f}dB, "
                     f"Diff Avg: {pitch_info['avg_level_diff_db']:5.1f}dB {flag}"
                 )
+
+            # Log some details about individual peak detections if there are many
+            if all_peak_detections:
+                logger.debug(
+                    f"Sample of individual peak detections ({len(all_peak_detections)} total):"
+                )
+                # Log up to the first 10 detections
+                for peak_info in all_peak_detections[:10]:
+                    logger.debug(
+                        f"  Frame {peak_info['frame_idx']}: Note {PITCH_CLASS_NAMES[peak_info['pc']]}{peak_info['octave']} (MIDI {peak_info['midi_note']}, Freq {peak_info['freq']:.1f}Hz), "
+                        f"Prom: {peak_info['prominence_db']:.1f}dB, Level: {peak_info['peak_level_db']:.1f}dB, Diff: {peak_info['level_diff_db']:.1f}dB"
+                    )
         else:
             logger.debug("No voiced frames to report detections.")
 
-    # Return the set of active Pitch Classes, the 12-entry table data, and total voiced frame count
-    return active_pitch_classes, table_data, voiced_cqt_frames_count
+    # Return the set of active Pitch Classes, the 12-entry table data,
+    # the list of individual peak detections, and total voiced frame count
+    return (
+        active_pitch_classes,
+        table_data,
+        all_peak_detections,
+        voiced_cqt_frames_count,
+    )

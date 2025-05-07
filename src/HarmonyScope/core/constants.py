@@ -20,3 +20,4 @@ CHORD_RELATIONS = [
     ("11", {0, 4, 7, 10, 14, 17}),
     ("13", {0, 4, 7, 10, 14, 21}),
 ]
+CHORD_RELATIONS = [(name, {pc % 12 for pc in pcs}) for name, pcs in CHORD_RELATIONS]

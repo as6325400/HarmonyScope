@@ -38,4 +38,4 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 plot = "HarmonyScope.plot_features:main"
-analyze = "HarmonyScope.cli.demo_analyze:file"
+file_analyze = "HarmonyScope.cli.file_analyze:main"

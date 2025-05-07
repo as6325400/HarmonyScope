@@ -1,3 +1,7 @@
+## Demo: Live Chord Detection
+
+![Demo GIF](plots/realtime_demo.gif)
+
 ## Example 1: C Major Chord Analysis
 
 ### Waveform

@@ -26,6 +26,14 @@ pip install harmonyscope
 
 ## Demo: Live Chord Detection
 
+After installation, simply run:
+```bash
+mic_analyze
+```
+It will open an interactive selector to choose your microphone device, and start live chord detection in your terminal.
+
+Demo preview:
+
 ![Demo GIF](plots/realtime_demo.gif)
 
 ## Example 1: C Major Chord Analysis

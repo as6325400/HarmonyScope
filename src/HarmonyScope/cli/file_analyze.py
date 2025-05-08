@@ -5,15 +5,17 @@ import time
 import argparse
 from HarmonyScope import set_verbosity
 
+
 def main():
-    
+
     ap = argparse.ArgumentParser()
-    ap.add_argument("-v", "--verbose", action="count", default=0,
-                    help="-v Display DEBUG")
+    ap.add_argument(
+        "-v", "--verbose", action="count", default=0, help="-v Display DEBUG"
+    )
     args = ap.parse_args()
 
     set_verbosity(args.verbose)
-    
+
     start = time.time()
     data_dir = Path(__file__).resolve().parent.parent / "data"
 
@@ -24,7 +26,6 @@ def main():
         print(f"{wav_path.name:<20} → {result}")
 
     print(f"\nTotal time: {time.time() - start:.2f}s")
-    
 
 
 if __name__ == "__main__":

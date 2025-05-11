@@ -1,3 +1,4 @@
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/as6325400/HarmonyScope)
 # HarmonyScope
 
 > Real-time chord detection and analysis for musicians 🎶

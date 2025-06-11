@@ -36,6 +36,42 @@ class ChordAnalyzer:
         self.min_prominence_db = min_prominence_db
         self.max_level_diff_db = max_level_diff_db
 
+    def _analyze_segment(self, seg: np.ndarray, sr: int) -> Tuple[
+        str | None,
+        Set[int],
+        List[Dict],
+        List[Dict[str, Any]],
+        float,
+        int,
+    ]:
+        """Core analysis shared by mic & file."""
+        segment_rms = np.sqrt(np.mean(seg**2))
+        segment_rms_db = (
+            librosa.amplitude_to_db(segment_rms, ref=1e-10)
+            if segment_rms > 1e-10
+            else -120.0
+        )
+
+        active_pcs, pc_data, detailed_peaks, voiced = active_pitches_array(
+            seg,
+            sr,
+            frame_energy_thresh_db=self.frame_energy_thresh_db,
+            min_frame_ratio=self.min_frame_ratio,
+            min_prominence_db=self.min_prominence_db,
+            max_level_diff_db=self.max_level_diff_db,
+        )
+
+        chord = identify_chord(active_pcs, detailed_peaks)
+
+        return (
+            chord,
+            active_pcs,
+            pc_data,
+            detailed_peaks,
+            segment_rms_db,
+            voiced,
+        )
+
     # -------- single file --------
     # This method is currently only used by the file_analyze CLI, which doesn't display detailed notes.
     # It will continue to use the simpler identify_chord logic that only takes pitch classes.
@@ -93,6 +129,23 @@ class ChordAnalyzer:
 
             yield start / sr, (start + win) / sr, chord
 
+    def stream_file_live(self, path: str) -> Generator[
+        Tuple[str | None, Set[int], List[Dict], List[Dict[str, Any]], float, int],
+        None,
+        None,
+    ]:
+        """
+        File-based cousin of stream_mic_live:
+        yields (chord, active_pcs, pc_data, peaks, rms_db, voiced) for each hop.
+        """
+        y, sr = self.reader(path)
+        win = int(self.win_sec * sr)
+        hop = int(self.hop_sec * sr)
+
+        for start in range(0, len(y) - win + 1, hop):
+            seg = y[start : start + win]
+            yield self._analyze_segment(seg, sr)
+
     # This is the main method for the mic_analyze CLI
     def stream_mic_live(self, interval_sec: float = 0.05) -> Generator[
         Tuple[str | None, Set[int], List[Dict], List[Dict[str, Any]], float, int],
@@ -111,20 +164,14 @@ class ChordAnalyzer:
         process_interval_sec = interval_sec
 
         logger.info(f"Waiting for initial buffer ({self.win_sec:.1f} seconds)...")
-        # Give the buffer a moment to fill initially
-        # Use a small timeout to prevent indefinite waiting if reader isn't working
         buffer_fill_start_time = time.time()
         while len(reader.get_buffer()) < analysis_window_frames:
             time.sleep(0.01)
-            if (
-                time.time() - buffer_fill_start_time > 5
-            ):  # Wait max 5 seconds for buffer
+            if time.time() - buffer_fill_start_time > 5:
                 logger.warning(
                     "Buffer not filling. Check microphone or device settings."
                 )
-                # Attempt analysis with partial buffer? Or raise an error?
-                # Let's continue but log the warning.
-                break  # Exit buffer wait loop
+                break
 
         logger.info("Buffer filled. Starting analysis.")
 
@@ -133,78 +180,34 @@ class ChordAnalyzer:
             while True:
                 current_time = time.time()
 
-                # Process only if enough time has passed since the last analysis
                 if current_time - last_process_time >= process_interval_sec:
 
                     y = reader.get_buffer()
-
-                    # We need at least the analysis window size to process
                     if len(y) < analysis_window_frames:
-                        # This should ideally not happen often if buffer_fill_start_time logic worked
                         logger.debug(
                             f"Buffer size ({len(y)}) smaller than window size ({analysis_window_frames}). Waiting..."
                         )
-                        time.sleep(0.01)  # Wait briefly
+                        time.sleep(0.01)
                         continue
 
-                    # Get the latest segment covering the analysis window size
                     seg = y[-analysis_window_frames:]
 
-                    # Calculate overall RMS dB for the segment
-                    segment_rms = np.sqrt(np.mean(seg**2))
-                    # Use a low reference for dB conversion
-                    if segment_rms > 1e-10:
-                        segment_rms_db = librosa.amplitude_to_db(segment_rms, ref=1e-10)
-                    else:
-                        segment_rms_db = -120.0
+                    result_tuple = self._analyze_segment(seg, reader.sr)
 
-                    # active_pitches_array returns active PCs, aggregated PC data, detailed peak data, total voiced frames
-                    (
-                        active_pitch_classes,
-                        pitch_data_by_pc,
-                        detailed_peak_detections,  # This list contains note info with octaves
-                        total_voiced_frames,
-                    ) = active_pitches_array(
-                        seg,
-                        reader.sr,
-                        frame_energy_thresh_db=self.frame_energy_thresh_db,
-                        min_frame_ratio=self.min_frame_ratio,
-                        min_prominence_db=self.min_prominence_db,
-                        max_level_diff_db=self.max_level_diff_db,
-                    )
-
-                    # Identify the chord. Pass BOTH active pitch classes (for pattern matching)
-                    # and detailed peak detections (to inform root selection via bass note).
-                    chord = identify_chord(
-                        active_pitch_classes, detailed_peak_detections
-                    )
-
-                    # Yield all the data needed by the CLI display
-                    yield (
-                        chord,
-                        active_pitch_classes,  # Still yield for debugging/display if needed
-                        pitch_data_by_pc,
-                        detailed_peak_detections,  # Include detailed data here
-                        segment_rms_db,
-                        total_voiced_frames,
-                    )
+                    yield result_tuple
 
                     last_process_time = current_time
 
-                # Small sleep to prevent busy-waiting
                 time.sleep(0.05)
 
         except KeyboardInterrupt:
-            # This is handled gracefully by the CLI main function's outer try/except
             pass
         except Exception as e:
             logger.error(
-                f"An error occurred during stream analysis: {e}", exc_info=True
+                "An error occurred during stream analysis: %s", e, exc_info=True
             )
-            # Re-raise the exception after logging so the CLI's outer block catches it
             raise
         finally:
-            # Ensure the MicReader stream is stopped when the generator loop exits
             if hasattr(reader, "stop"):
                 logger.info("Stopping audio stream.")
                 reader.stop()

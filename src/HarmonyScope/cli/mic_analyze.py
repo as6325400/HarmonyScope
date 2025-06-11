@@ -7,6 +7,7 @@ from HarmonyScope import set_verbosity
 from HarmonyScope.ui.rich_live import LiveMicUI, live_mic_loop
 import logging
 from HarmonyScope.core.constants import PITCH_CLASS_NAMES
+from HarmonyScope.cli.common_args import add_common_args
 
 logger = logging.getLogger(__name__)
 
@@ -40,55 +41,19 @@ def choose_device_interactive() -> int:
 
 
 def main():
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(
+        prog="harmonyscope-mic",
+        description="🎤  Real-time microphone chord analyzer",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    add_common_args(ap)
+
     ap.add_argument(
         "--device",
         type=int,
         default=None,
         help="device id (use --device -1 to list & choose interactively)",
-    )
-    ap.add_argument(
-        "--window",
-        type=float,
-        default=0.75,
-        help="Analysis window size in seconds (default: 0.75). Affects latency and accuracy.",
-    )
-    ap.add_argument(
-        "--interval",
-        type=float,
-        default=0.05,
-        help="Minimum analysis interval in seconds (default: 0.05). Controls update rate.",
-    )
-    ap.add_argument(
-        "--min-frame-ratio",
-        type=float,
-        default=0.3,
-        help="Min ratio of voiced frames a pitch class must be detected in to be active (default: 0.3).",
-    )
-    ap.add_argument(
-        "--min-prominence-db",
-        type=float,
-        default=8.0,
-        help="Minimum peak prominence in dB for pitch detection (default: 8.0). Higher values filter more noise.",
-    )
-    ap.add_argument(
-        "--max-level-diff-db",
-        type=float,
-        default=15.0,
-        help="Maximum dB difference from loudest peak in frame for pitch detection (default: 15.0). Lower values filter more weak peaks/harmonics.",
-    )
-    ap.add_argument(
-        "--frame-energy-thresh-db",
-        type=float,
-        default=-40.0,
-        help="Energy threshold (dB relative to a low ref) to consider a frame voiced (default: -40.0). Lower values are more sensitive to quiet sounds.",
-    )
-    ap.add_argument(
-        "-v",
-        "--verbose",
-        action="count",
-        default=0,
-        help="-v Display DEBUG logs for HarmonyScope (e.g., frame-level pitch detections)",
     )
 
     args = ap.parse_args()

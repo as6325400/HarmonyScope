@@ -3,6 +3,7 @@ import numpy as np
 import logging
 import librosa
 import time  # Ensure time is imported
+from joblib import Parallel, delayed
 
 logger = logging.getLogger(__name__)
 
@@ -129,22 +130,25 @@ class ChordAnalyzer:
 
             yield start / sr, (start + win) / sr, chord
 
-    def stream_file_live(self, path: str) -> Generator[
-        Tuple[str | None, Set[int], List[Dict], List[Dict[str, Any]], float, int],
-        None,
-        None,
+    def stream_file_live(
+        self, path: str
+    ) -> list[
+        Tuple[str | None, set[int], list[dict], list[dict[str, Any]], float, int]
     ]:
         """
-        File-based cousin of stream_mic_live:
-        yields (chord, active_pcs, pc_data, peaks, rms_db, voiced) for each hop.
+        Parallel version: analyzes all segments in parallel and returns a list instead of a generator.
         """
         y, sr = self.reader(path)
         win = int(self.win_sec * sr)
         hop = int(self.hop_sec * sr)
 
-        for start in range(0, len(y) - win + 1, hop):
-            seg = y[start : start + win]
-            yield self._analyze_segment(seg, sr)
+        segments = [y[start : start + win] for start in range(0, len(y) - win + 1, hop)]
+
+        results = Parallel(n_jobs=-1, prefer="processes")(
+            delayed(self._analyze_segment)(seg, sr) for seg in segments
+        )
+
+        return results
 
     # This is the main method for the mic_analyze CLI
     def stream_mic_live(self, interval_sec: float = 0.05) -> Generator[

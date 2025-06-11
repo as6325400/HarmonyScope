@@ -14,6 +14,7 @@ from HarmonyScope import set_verbosity
 from HarmonyScope.analyzer.chord_analyzer import ChordAnalyzer
 from HarmonyScope.cli.common_args import add_common_args
 from HarmonyScope.io.file_reader import FileReader
+from tqdm import tqdm
 
 Frame = Dict[str, Any]
 
@@ -24,13 +25,14 @@ def prepare_frames(
     ana: ChordAnalyzer, wav_path: Path
 ) -> tuple[List[Frame], float, float]:
     y, sr = librosa.load(wav_path, sr=None)
-    results = list(ana.stream_file_live(str(wav_path)))
+    results = ana.stream_file_live(str(wav_path))
     hop_sec, win_sec = ana.hop_sec, ana.win_sec
     win_len = int(win_sec * sr)
     hop_len = int(hop_sec * sr)
 
     frames: List[Frame] = []
-    for idx, res in enumerate(results):
+
+    for idx, res in enumerate(tqdm(results, desc="Analyzing")):
         t0 = round(idx * hop_sec, 3)
         seg = y[idx * hop_len : idx * hop_len + win_len]
 
@@ -217,7 +219,6 @@ def main() -> None:
     wav_path = Path(args.path).expanduser().resolve()
     if not wav_path.exists():
         raise FileNotFoundError(wav_path)
-
     ana = ChordAnalyzer(
         reader=FileReader(),
         win_sec=args.window,
@@ -227,7 +228,6 @@ def main() -> None:
         frame_energy_thresh_db=args.frame_energy_thresh_db,
         hop_sec=args.interval,
     )
-
     frames, hop_sec, win_sec = prepare_frames(ana, wav_path)
     gradio_app = build_gradio_app(frames, hop_sec, win_sec)
     print(f"🔗 Launching Gradio for: {wav_path.name}")

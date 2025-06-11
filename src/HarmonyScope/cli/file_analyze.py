@@ -195,7 +195,7 @@ def main() -> None:
     args = ap.parse_args()
     set_verbosity(args.verbose)
 
-    wav_path = Path(args.input).expanduser().resolve()
+    wav_path = Path(args.path).expanduser().resolve()
     if not wav_path.exists():
         raise FileNotFoundError(wav_path)
 

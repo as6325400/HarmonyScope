@@ -29,6 +29,9 @@ sounddevice = "^0.5.1"
 matplotlib = "^3.10.1"
 questionary = "^2.1.0"
 rich = "^14.0.0"
+gradio = "^5.33.1"
+pandas = "^2.3.0"
+tqdm = "^4.67.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"

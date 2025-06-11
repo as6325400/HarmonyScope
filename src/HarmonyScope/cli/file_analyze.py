@@ -19,6 +19,7 @@ Frame = Dict[str, Any]
 
 # ---------- stream_file_live → frames ----------
 
+
 def prepare_frames(
     ana: ChordAnalyzer, wav_path: Path
 ) -> tuple[List[Frame], float, float]:
@@ -57,7 +58,9 @@ def prepare_frames(
         )
     return frames, hop_sec, win_sec
 
+
 # ---------- draw ----------
+
 
 def plot_wave(wave: np.ndarray, start: float, win: float) -> plt.Figure:
     fig, ax = plt.subplots(figsize=(7.5, 2.7))
@@ -109,7 +112,9 @@ def plot_chroma(chroma: np.ndarray, start: float, win: float) -> plt.Figure:
     fig.tight_layout()
     return fig
 
+
 # ---------- Gradio ----------
+
 
 def build_gradio_app(frames: List[Frame], hop: float, win: float) -> gr.Blocks:
     """Minimal-whitespace responsive layout using only props compatible with older Gradio versions."""
@@ -170,7 +175,9 @@ def build_gradio_app(frames: List[Frame], hop: float, win: float) -> gr.Blocks:
 
     return demo
 
+
 # ---------- CLI ----------
+
 
 def main() -> None:
     ap = argparse.ArgumentParser(
@@ -179,7 +186,12 @@ def main() -> None:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     add_common_args(ap)
-    ap.add_argument("input", help="Path to audio file (wav/flac/mp3)")
+    ap.add_argument(
+        "--path",
+        type=str,
+        required=True,
+        help="Path to audio file (wav/flac/mp3), e.g. --path ./samples/example.wav",
+    )
     args = ap.parse_args()
     set_verbosity(args.verbose)
 

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "harmonyscope"
-version = "0.1.2"
+version = "1.0.0"
 description = "A real-time and offline chord recognition tool for audio analysis."
 authors = ["as6325400 <as6325400@gmail.com>"]
 license = "MIT"
